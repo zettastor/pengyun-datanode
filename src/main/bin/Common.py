@@ -270,7 +270,7 @@ def get_dev_type_by_measure_concurrent(dev_and_partition_name_tuples):
         t.join()
 
     end_time = time.time()
-    logger.info("get_dev_type_by_measure_concurrent cost [%d] seconds, result:{}", end_time - start_time, result_map)
+    logger.info("get_dev_type_by_measure_concurrent cost [%d] seconds, result:[%s]", end_time - start_time, result_map)
     return result_map
 
 
