@@ -73,10 +73,16 @@ last_raw_num = Common.get_max_raw_num()
 
 # full fill device info
 dev_infos = []
+dev_name_tuples = []
+for serial_num, dev_name in plugin_simple_disk_infos:
+    dev_name_tuples.append((dev_name,))
+
+dev_type_map = Common.get_dev_type_by_measure_concurrent(dev_name_tuples)
+
 for serial_num, dev_name in plugin_simple_disk_infos:
   last_raw_num += 1
   raw_name = config_reader.raw_disk_base_name + str(last_raw_num)
-  dev_type = Common.get_dev_type_by_measure(dev_name)
+  dev_type = dev_type_map[dev_name]
   disk_size = Common.get_disk_size(Common.get_dev_path_by_dev_name(dev_name))
 
   dev_infos.append(

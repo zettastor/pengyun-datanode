@@ -110,11 +110,12 @@ if len(dev_names_without_partition) + len(partition_infos) <= 0:
   exit(0)
 
 # get dev types for disks without partition
-dev_type_map = {dev_name: Common.get_dev_type_by_measure(dev_name) for dev_name
-                in dev_names_without_partition}
+dev_name_tuples = [(dev_name,) for dev_name in dev_names_without_partition]
+dev_type_map = Common.get_dev_type_by_measure_concurrent(dev_name_tuples)
 
 # check whether need partition
 if config_reader.need_partition_ssd_disk():
+  dev_name_tuples = []
   if Common.need_overwrite_disk():
     logger.info("overwrite disk, clean up all partitioned disks:[%s]",
                 partition_infos)
@@ -124,7 +125,7 @@ if config_reader.need_partition_ssd_disk():
 
       partition_infos.remove(partition_info)
       dev_names_without_partition.append(dev_name)
-      dev_type_map[dev_name] = Common.get_dev_type_by_measure(dev_name)
+      dev_name_tuples.append((dev_name, ))
 
   else:
     # mount already partitioned disks
@@ -139,8 +140,11 @@ if config_reader.need_partition_ssd_disk():
   for info in partition_infos:
     dev_name = info.get_dev_name()
     raw_disk_partition_name = info.get_raw_disk_partition()
-    dev_type_map[raw_disk_partition_name] = Common.get_dev_type_by_measure(
-        dev_name, raw_disk_partition_name)
+    dev_name_tuples.append((dev_name, raw_disk_partition_name))
+
+  if len(dev_name_tuples) > 0:
+    dev_type_map2 = Common.get_dev_type_by_measure_concurrent(dev_name_tuples)
+    dev_type_map.update(dev_type_map2)
 
   # partition, format, mount ssd disks
   for dev_name in dev_names_without_partition[:]:

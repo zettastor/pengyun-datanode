@@ -234,33 +234,78 @@ def run_java_init_program(serial_num, dev_path, dev_type, link_path,
   return run_cmd(cmd)
 
 
-def get_dev_type_by_measure(dev_name, partition_name=None):
+def get_dev_type_by_measure_concurrent(dev_and_partition_name_tuples):
+    """
+    use thread concurrent get dev type
+    :param dev_and_partition_name_tuples: should be a tuple list, [(dev_name,
+    partition_name)]  or [(dev_name)] if partition is None, like
+    [('dev1', 'partition1'), ('dev2', 'partition2')] or
+    [('dev1'), ('dev2'), ('dev3')]
+    :return:
+    """
+    start_time = time.time()
+    result_map = {}
+    if dev_and_partition_name_tuples is None or len(dev_and_partition_name_tuples) <= 0:
+        return result_map
+    thread_list = []
+    for dev_and_partition_name_tuple in dev_and_partition_name_tuples:
+        length = len(dev_and_partition_name_tuple)
+        dev_name = None
+        partition_name = None
+        if length == 1:
+            dev_name = dev_and_partition_name_tuple[0]
+        elif length == 2:
+            dev_name = dev_and_partition_name_tuple[0]
+            partition_name = dev_and_partition_name_tuple[1]
+
+        if dev_name is not None:
+            t = threading.Thread(target=get_dev_type_by_measure, args=(result_map,
+                                                                       dev_name,
+                                                                       partition_name,
+                                                                      ))
+            t.start()
+            thread_list.append(t)
+
+    for t in thread_list:
+        t.join()
+
+    end_time = time.time()
+    logger.info("get_dev_type_by_measure_concurrent cost [%d] seconds, result:{}", end_time - start_time, result_map)
+    return result_map
+
+
+def get_dev_type_by_measure(dev_type_map, dev_name, partition_name=None):
   """
   get dev type by measure: ssd pattern and pcie pattern from datanode config, disk speed test by java program
   :param dev_name:
   :param partition_name: if pass this parameter, ssd speed test will test on partition; if not pass, speed test will test on dev name
   :return:
   """
+  speed_test_dev_name = dev_name
+  if partition_name is not None:
+    speed_test_dev_name = partition_name
+
   if is_pcie_according_to_dev_name_pattern(dev_name):
     dev_type = DevType.PCIE
     logger.info("get dev type:[%s] for dev name:[%s] partition name:[%s]",
                 dev_type, dev_name, partition_name)
+    dev_type_map[speed_test_dev_name] = dev_type
     return dev_type
 
-  speed_test_dev_name = dev_name
-  if partition_name is not None:
-    speed_test_dev_name = partition_name
+
 
   if is_ssd_according_to_dev_name_pattern(
       dev_name) or is_ssd_according_speed_test(speed_test_dev_name):
     dev_type = DevType.SSD
     logger.info("get dev type:[%s] for dev name:[%s] partition name:[%s]",
                 dev_type, dev_name, partition_name)
+    dev_type_map[speed_test_dev_name] = dev_type
     return dev_type
 
   dev_type = DevType.SATA
   logger.info("get dev type:[%s] for dev name:[%s] partition name:[%s]",
               dev_type, dev_name, partition_name)
+  dev_type_map[speed_test_dev_name] = dev_type
   return dev_type
 
 
