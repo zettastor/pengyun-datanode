@@ -1,0 +1,92 @@
+#!/usr/bin/perl
+#
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# please note, this script has not been maintained by anyone for a long time, it it outdated.
+# If we want use this script again, we need spend much time to fix problems in it, maybe rewrite it.
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#
+# Wipeout all used disk by datanode.
+#
+# The disk application in datanode showed below:
+# 1. raw disk to store data
+# 2. ssd used for log cache
+# 3. ssd used for page cache
+#
+# @auther zjm
+#
+
+use FindBin '$RealBin';
+use File::Basename qw(dirname);
+use Cwd  qw(abs_path);
+use lib dirname(dirname abs_path $0) . '/bin';
+use MKFS;
+use FDisk;
+use EnvironmentUtils;
+use ArchiveForLogCache;
+
+use constant DD_SIZE_MB         =>  16;
+
+use constant DEVICE_ROOT        =>  "/dev";
+use constant DATALOG_SRC        =>  "/var/pengyun_cache";
+use constant DATALOG            =>  "var/storage/datalog";
+use constant FILEBUFFER         =>  "var/storage/filebuffer";
+use constant L2CACHE            =>  "var/storage/l2Cache";
+use constant DATANODE_CONF      =>  "config/datanode.properties";
+
+my $env_root = get_actual_environment_root();
+my $datalog_src = DATALOG_SRC;
+my $datalog = File::Spec->catfile($env_root, DATALOG);
+my $filebuffer = File::Spec->catfile($env_root, FILEBUFFER);
+
+# ***Wipeout all disk used for log cache***
+my $device_path = undef;
+
+if (my $fs_record = has_fs_permanent_mounted($datalog_src)) {
+    my $fs_uuid = substr($fs_record->{file_system}, index($fs_record->{file_system}, '=') + 1);
+    my $device_path_for_datalog = get_device_path_with_fs_uuid($fs_uuid);
+    ($device_path = $device_path_for_datalog) =~ s/(.*)\d$/$1/g;
+
+    print "We used a ssd $device_path for log cache application before, now to wipeout the ssd and relative resources\n";
+    
+    remove_permanent_mounted_fs($datalog_src);
+} else {
+    # ***Find out the ssd used as log cache before first***.
+    foreach my $ssd(@{get_all_ssds()}) {
+        $ssd_for_log_cache_application = $ssd if has_partition($ssd) and is_log_cache_application($ssd."1");
+    }
+    $device_path = File::Spec->catfile(DEVICE_ROOT, $ssd_for_log_cache_application) if $ssd_for_log_cache_application;
+}
+
+# try multiple times to umount datalog due to the device may be busy
+($device_path = has_fs_mounted($datalog_src)) =~ s/(.*)\d$/$1/g unless $device_path;
+foreach my $tryTime (1..5) {
+    last unless has_fs_mounted($datalog_src);
+    system("umount $datalog_src");
+    sleep 1;
+}
+die "Unable to umount $datalog: $!" if has_fs_mounted($datalog);
+
+system("rm -f $filebuffer") and die $! if -e $filebuffer;
+
+# remove partitions on device ssd
+if ($device_path) {
+    print "remove partitions on device $device_path \n";
+
+    del_partition($device_path, 2);
+    del_partition($device_path);
+
+    (my $device_name = $device_path) =~ s/\/.*\/(.*)/$1/g;
+    print "Make sure partition modification on $device_name has written to disk.\n";
+
+    foreach my $tryTime (1 .. 5) {
+        last unless has_partition($device_name);
+        sleep 1;
+        print "Device $ssd_path still has partition in disk, let's sync it one more time ...\n";
+        sync_partition($device_path);
+    }
+
+    system("dd if=/dev/zero of=$device_path bs=1M count=".DD_SIZE_MB) and die $!;
+}
+
+# ***Wipeout all disk for datanode general application***
+system("$env_root/bin/ZeroRawDisk.pl ".DD_SIZE_MB);

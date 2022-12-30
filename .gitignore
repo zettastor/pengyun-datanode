@@ -1,0 +1,15 @@
+.classpath
+.project
+.settings
+target
+*.log
+*.log.*
+config_info
+test-output
+bin/
+!src/*/bin/
+manifest.mf
+var/
+*.iml
+.idea
+.flattened-pom.xml
