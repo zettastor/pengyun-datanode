@@ -1499,11 +1499,15 @@ def filter_out_mounted_device(dev_names):
   :return: remained dev names
   """
   # filter out by mount info
-  ret_code, ret_lines = run_cmd("mount")
-  mount_info = "".join(ret_lines)
-  remained_dev_names = filter(
-      lambda dev_name: get_dev_path_by_dev_name(dev_name) not in mount_info,
-      dev_names)
+  ret_code, ret_lines = run_cmd("mount -l | awk '{print $1}'  | grep '/dev/'")
+  remained_dev_names = dev_names[:]
+  for i in range(0, len(ret_lines)):
+    line = ret_lines[i]
+    new_line = re.sub(r'[0-9]+', '', line)
+    new_dev_name = get_dev_name_by_dev_path(new_line);
+    logger.info("mount disk info:[%s]", new_dev_name)
+    if new_dev_name in remained_dev_names:
+      remained_dev_names.remove(new_dev_name)
   logger.info(
       "origin dev_names:[%s] filter out mounted device, remained dev_names:[%s]",
       dev_names, remained_dev_names)
