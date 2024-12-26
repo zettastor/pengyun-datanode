@@ -1,19 +1,19 @@
 # -*- encoding=utf-8 -*-
+# Copyright (C) 2013-2024 Nanjing Pengyun Network Technology Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# 
 """
 find all blank disks in system, and raw them to raw disks
-"""
-#  Copyright (c) 2022. PengYunNetWork
-#
-#  This program is free software: you can use, redistribute, and/or modify it
-#  under the terms of the GNU Affero General Public License, version 3 or later ("AGPL"),
-#  as published by the Free Software Foundation.
-#
-#  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-#   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-#
-#   You should have received a copy of the GNU Affero General Public License along with
-#   this program. If not, see <http://www.gnu.org/licenses/>.
-
 import Common
 import argparse
 import common_models
@@ -110,12 +110,11 @@ if len(dev_names_without_partition) + len(partition_infos) <= 0:
   exit(0)
 
 # get dev types for disks without partition
-dev_name_tuples = [(dev_name,) for dev_name in dev_names_without_partition]
-dev_type_map = Common.get_dev_type_by_measure_concurrent(dev_name_tuples)
+dev_type_map = {dev_name: Common.get_dev_type_by_measure(dev_name) for dev_name
+                in dev_names_without_partition}
 
 # check whether need partition
 if config_reader.need_partition_ssd_disk():
-  dev_name_tuples = []
   if Common.need_overwrite_disk():
     logger.info("overwrite disk, clean up all partitioned disks:[%s]",
                 partition_infos)
@@ -125,7 +124,7 @@ if config_reader.need_partition_ssd_disk():
 
       partition_infos.remove(partition_info)
       dev_names_without_partition.append(dev_name)
-      dev_name_tuples.append((dev_name, ))
+      dev_type_map[dev_name] = Common.get_dev_type_by_measure(dev_name)
 
   else:
     # mount already partitioned disks
@@ -140,11 +139,8 @@ if config_reader.need_partition_ssd_disk():
   for info in partition_infos:
     dev_name = info.get_dev_name()
     raw_disk_partition_name = info.get_raw_disk_partition()
-    dev_name_tuples.append((dev_name, raw_disk_partition_name))
-
-  if len(dev_name_tuples) > 0:
-    dev_type_map2 = Common.get_dev_type_by_measure_concurrent(dev_name_tuples)
-    dev_type_map.update(dev_type_map2)
+    dev_type_map[raw_disk_partition_name] = Common.get_dev_type_by_measure(
+        dev_name, raw_disk_partition_name)
 
   # partition, format, mount ssd disks
   for dev_name in dev_names_without_partition[:]:
@@ -194,8 +190,7 @@ for dev_name in all_usable_dev_names:
   disk_size = Common.get_disk_size(Common.get_dev_path_by_dev_name(dev_name))
 
   raw_name = None
-  matched_rule_contents = filter(
-      lambda content: content.get_serial_num() == serial_num, rule_contents)
+  matched_rule_contents = [content for content in rule_contents if content.get_serial_num() == serial_num]
   if only_check_plugin_disk or len(matched_rule_contents) <= 0:
     last_raw_num += 1
     raw_name = config_reader.raw_disk_base_name + str(last_raw_num)

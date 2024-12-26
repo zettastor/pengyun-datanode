@@ -1,22 +1,26 @@
 # -*- encoding=utf-8 -*-
+# Copyright (C) 2013-2024 Nanjing Pengyun Network Technology Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# 
 """
 read config
 """
-
-#  Copyright (c) 2022. PengYunNetWork
-#
-#  This program is free software: you can use, redistribute, and/or modify it
-#  under the terms of the GNU Affero General Public License, version 3 or later ("AGPL"),
-#  as published by the Free Software Foundation.
-#
-#  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-#   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-#
-#   You should have received a copy of the GNU Affero General Public License along with
-#   this program. If not, see <http://www.gnu.org/licenses/>.
-
-import ConfigParser
-import StringIO
+try: #python2
+  import ConfigParser
+  import StringIO
+except ImportError: #python3
+  import configparser as ConfigParser
+  import io as StringIO
 import common_utils
 import config_location
 import os
@@ -50,7 +54,7 @@ config_folder = os.path.join(project_folder, "config")
 # config_folder = os.path.join(project_folder, "resources", "config")
 
 default_section = "root"
-config_files = list(set(config_location.config_location.itervalues()))
+config_files = list(set(config_location.config_location.values()))
 config_parsers = {}
 
 for filename in config_files:

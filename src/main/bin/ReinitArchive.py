@@ -1,17 +1,17 @@
 # -*- encoding=utf-8 -*-
-
-#  Copyright (c) 2022. PengYunNetWork
+# Copyright (C) 2013-2024 Nanjing Pengyun Network Technology Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-#  This program is free software: you can use, redistribute, and/or modify it
-#  under the terms of the GNU Affero General Public License, version 3 or later ("AGPL"),
-#  as published by the Free Software Foundation.
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-#  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-#   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-#
-#   You should have received a copy of the GNU Affero General Public License along with
-#   this program. If not, see <http://www.gnu.org/licenses/>.
-
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# 
 import Common
 import argparse
 import config_reader
@@ -74,8 +74,7 @@ if not force_rebuild:
 
 serial_num = None
 dev_name = None
-matched_contents = filter(lambda content: content.get_raw_name() == raw_name,
-                          Common.get_60_rule_contents())
+matched_contents = [content for content in Common.get_60_rule_contents() if content.get_raw_name() == raw_name]
 if len(matched_contents) > 0:
   content = matched_contents[0]
   logger.info("Find content:[%s] in 60rule that match raw_name:[%s]", content,
@@ -111,8 +110,7 @@ shutil.move(origin_link_path, new_link_path)
 
 # if it is partitioned disk, should use the origin dev_name
 file_system_partition_name = None
-partition_infos = filter(lambda info: info.get_raw_disk_partition() == dev_name,
-                         Common.get_partition_record_contents())
+partition_infos = [info for info in Common.get_partition_record_contents() if info.get_raw_disk_partition() == dev_name]
 if len(partition_infos) > 0:
   dev_path = Common.get_dev_path_by_dev_name(partition_infos[0].get_dev_name())
   file_system_partition_name = partition_infos[0].get_file_system_partition()

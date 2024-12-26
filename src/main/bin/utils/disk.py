@@ -1,25 +1,30 @@
 # -*- encoding=utf-8 -*-
+# Copyright (C) 2013-2024 Nanjing Pengyun Network Technology Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# 
 """
 disk utils
-"""
-#  Copyright (c) 2022. PengYunNetWork
-#
-#  This program is free software: you can use, redistribute, and/or modify it
-#  under the terms of the GNU Affero General Public License, version 3 or later ("AGPL"),
-#  as published by the Free Software Foundation.
-#
-#  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-#   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-#
-#   You should have received a copy of the GNU Affero General Public License along with
-#   this program. If not, see <http://www.gnu.org/licenses/>.
-
-import common
 import glob
 import logging
 import os
 import re
-from common import run_cmd
+
+try: #python2
+  import common
+  from common import run_cmd
+except ImportError: #python3
+  from . import common
+  from .common import run_cmd
 
 logger = logging.getLogger(__name__)
 
@@ -268,7 +273,7 @@ def get_partition_paths(dev_path):
   #   Device Boot      Start         End      Blocks   Id  System
   # /dev/sdc1            2048     2099199     1048576   83  Linux
   # /dev/sdc2         2099200    20971519     9436160   83  Linux
-  partition_lines = filter(lambda line: line.startswith(dev_path), ret_lines)
+  partition_lines = [line for line in ret_lines if line.startswith(dev_path)]
   partition_paths = [line.split()[0] for line in partition_lines]
   if len(partition_paths) > 0:
     logger.info("get partition paths:[%s] for dev_path:[%s]", partition_paths,
