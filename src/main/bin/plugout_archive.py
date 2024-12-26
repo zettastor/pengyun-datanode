@@ -1,19 +1,19 @@
 # -*- encoding=utf-8 -*-
+# Copyright (C) 2013-2024 Nanjing Pengyun Network Technology Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# 
 """
 when plugout one disk, use this script to unraw disk and delete disk info in datanode
-"""
-#  Copyright (c) 2022. PengYunNetWork
-#
-#  This program is free software: you can use, redistribute, and/or modify it
-#  under the terms of the GNU Affero General Public License, version 3 or later ("AGPL"),
-#  as published by the Free Software Foundation.
-#
-#  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-#   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-#
-#   You should have received a copy of the GNU Affero General Public License along with
-#   this program. If not, see <http://www.gnu.org/licenses/>.
-
 import Common
 import argparse
 import config_reader
@@ -38,8 +38,7 @@ args = parser.parse_args()
 serial_num = args.serial_num
 logger.info("plugout disk begin, serial num:[%s]", serial_num)
 
-contents = filter(lambda content: content.get_serial_num() == serial_num,
-                  Common.get_60_rule_contents(reload=True))
+contents = [content for content in Common.get_60_rule_contents(reload=True) if content.get_serial_num() == serial_num]
 if len(contents) <= 0:
   logger.error("can't find raw name by serial num:[%s], plugout disk failed",
                serial_num)

@@ -1,27 +1,31 @@
 # -*- encoding=utf-8 -*-
+# Copyright (C) 2013-2024 Nanjing Pengyun Network Technology Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# 
 """
 some basic independent common utils
-"""
-#  Copyright (c) 2022. PengYunNetWork
-#
-#  This program is free software: you can use, redistribute, and/or modify it
-#  under the terms of the GNU Affero General Public License, version 3 or later ("AGPL"),
-#  as published by the Free Software Foundation.
-#
-#  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-#   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-#
-#   You should have received a copy of the GNU Affero General Public License along with
-#   this program. If not, see <http://www.gnu.org/licenses/>.
-
 import inspect
 import logging
 import os
 import re
 import shutil
 import subprocess
+import sys
 
-from exceptions import JavaReadWriteException
+try: #python2
+  from exceptions import JavaReadWriteException
+except ImportError: #python3
+  from .exceptions import JavaReadWriteException
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +43,11 @@ def run_cmd(cmd):
   child = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                            shell=True)
   std_out, std_err = child.communicate()
+  # python3 return bytes, need decode, python2 return str, not need
+  if is_python3():
+    std_out = std_out.decode()
+    std_err = std_err.decode()
+
   ret_code = child.poll()
 
   # filter out log4j error
@@ -48,6 +57,10 @@ def run_cmd(cmd):
   logger.info("run cmd:[%s] ret code:[%s] std out:[%s] std err:[%s]", cmd,
               ret_code, std_out, std_err)
   return ret_code, std_out.splitlines()
+
+
+def is_python3():
+  return sys.version_info.major >= 3
 
 
 def filter_out_log4j_error_line(lines):
@@ -60,16 +73,9 @@ def filter_out_log4j_error_line(lines):
     return []
 
   remained_lines = lines
-  remained_lines = filter(lambda
-                              line: "log4j:ERROR Attempted to append to closed appender named" not in line,
-                          remained_lines)
-  remained_lines = filter(
-      lambda
-          line: "log4j:ERROR Could not instantiate appender named" not in line,
-      remained_lines)
-  remained_lines = filter(
-      lambda line: "log4j:ERROR Could not find value for key" not in line,
-      remained_lines)
+  remained_lines = [line for line in remained_lines if "log4j:ERROR Attempted to append to closed appender named" not in line]
+  remained_lines = [line for line in remained_lines if "log4j:ERROR Could not instantiate appender named" not in line]
+  remained_lines = [line for line in remained_lines if "log4j:ERROR Could not find value for key" not in line]
 
   return remained_lines
 
@@ -226,8 +232,8 @@ def exit_process(exit_code, info):
 
   logger.error("exit process at [%s:%s] info:[%s] exit code:[%s]", file_path,
                line_num, info, exit_code)
-  print("exit process at [%s:%s] info:[%s] exit code:[%s]" % (
-    file_path, line_num, info, exit_code))
+  print(("exit process at [%s:%s] info:[%s] exit code:[%s]" % (
+    file_path, line_num, info, exit_code)))
   exit(exit_code)
 
 

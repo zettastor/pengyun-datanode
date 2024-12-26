@@ -1,24 +1,28 @@
 # -*- encoding=utf-8 -*-
-
-#  Copyright (c) 2022. PengYunNetWork
+# Copyright (C) 2013-2024 Nanjing Pengyun Network Technology Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-#  This program is free software: you can use, redistribute, and/or modify it
-#  under the terms of the GNU Affero General Public License, version 3 or later ("AGPL"),
-#  as published by the Free Software Foundation.
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-#  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-#   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-#
-#   You should have received a copy of the GNU Affero General Public License along with
-#   this program. If not, see <http://www.gnu.org/licenses/>.
-
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# 
 # this is a code generator, generate config item location definition for perl and python
 # for example, ssd.detect.by.speed config is in archive.properties, then this script will
 # generate one entry, like (ssd.detect.by.speed, archive.properties), so when perl or python
 # script try to read config ssd.detect.by.speed, they will only read it from archive.properties
 
-import ConfigParser
-import StringIO
+try: #python2
+  import ConfigParser
+  import StringIO
+except ImportError: #python3
+  import configparser as ConfigParser
+  import io as StringIO
 import argparse
 import os
 import sys
@@ -59,7 +63,7 @@ for file_path in config_file_paths:
       else:
         config_dict[name] = file_name
 
-config_tuples = sorted(config_dict.iteritems(), key=lambda t: (t[1], t[0]))
+config_tuples = sorted(iter(config_dict.items()), key=lambda t: (t[1], t[0]))
 
 print("Find configs as below:")
 for (name, value) in config_tuples:

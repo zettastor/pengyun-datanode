@@ -1,21 +1,21 @@
 # -*- encoding=utf-8 -*-
+# Copyright (C) 2013-2024 Nanjing Pengyun Network Technology Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# 
 """
 some common subroutine
 some common init routine run in last line, please check
 """
-
-#  Copyright (c) 2022. PengYunNetWork
-#
-#  This program is free software: you can use, redistribute, and/or modify it
-#  under the terms of the GNU Affero General Public License, version 3 or later ("AGPL"),
-#  as published by the Free Software Foundation.
-#
-#  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-#   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-#
-#   You should have received a copy of the GNU Affero General Public License along with
-#   this program. If not, see <http://www.gnu.org/licenses/>.
-
 import common_models
 import common_utils
 import config_reader
@@ -234,78 +234,33 @@ def run_java_init_program(serial_num, dev_path, dev_type, link_path,
   return run_cmd(cmd)
 
 
-def get_dev_type_by_measure_concurrent(dev_and_partition_name_tuples):
-    """
-    use thread concurrent get dev type
-    :param dev_and_partition_name_tuples: should be a tuple list, [(dev_name,
-    partition_name)]  or [(dev_name)] if partition is None, like
-    [('dev1', 'partition1'), ('dev2', 'partition2')] or
-    [('dev1'), ('dev2'), ('dev3')]
-    :return:
-    """
-    start_time = time.time()
-    result_map = {}
-    if dev_and_partition_name_tuples is None or len(dev_and_partition_name_tuples) <= 0:
-        return result_map
-    thread_list = []
-    for dev_and_partition_name_tuple in dev_and_partition_name_tuples:
-        length = len(dev_and_partition_name_tuple)
-        dev_name = None
-        partition_name = None
-        if length == 1:
-            dev_name = dev_and_partition_name_tuple[0]
-        elif length == 2:
-            dev_name = dev_and_partition_name_tuple[0]
-            partition_name = dev_and_partition_name_tuple[1]
-
-        if dev_name is not None:
-            t = threading.Thread(target=get_dev_type_by_measure, args=(result_map,
-                                                                       dev_name,
-                                                                       partition_name,
-                                                                      ))
-            t.start()
-            thread_list.append(t)
-
-    for t in thread_list:
-        t.join()
-
-    end_time = time.time()
-    logger.info("get_dev_type_by_measure_concurrent cost [%d] seconds, result:[%s]", end_time - start_time, result_map)
-    return result_map
-
-
-def get_dev_type_by_measure(dev_type_map, dev_name, partition_name=None):
+def get_dev_type_by_measure(dev_name, partition_name=None):
   """
   get dev type by measure: ssd pattern and pcie pattern from datanode config, disk speed test by java program
   :param dev_name:
   :param partition_name: if pass this parameter, ssd speed test will test on partition; if not pass, speed test will test on dev name
   :return:
   """
-  speed_test_dev_name = dev_name
-  if partition_name is not None:
-    speed_test_dev_name = partition_name
-
   if is_pcie_according_to_dev_name_pattern(dev_name):
     dev_type = DevType.PCIE
     logger.info("get dev type:[%s] for dev name:[%s] partition name:[%s]",
                 dev_type, dev_name, partition_name)
-    dev_type_map[speed_test_dev_name] = dev_type
     return dev_type
 
-
+  speed_test_dev_name = dev_name
+  if partition_name is not None:
+    speed_test_dev_name = partition_name
 
   if is_ssd_according_to_dev_name_pattern(
       dev_name) or is_ssd_according_speed_test(speed_test_dev_name):
     dev_type = DevType.SSD
     logger.info("get dev type:[%s] for dev name:[%s] partition name:[%s]",
                 dev_type, dev_name, partition_name)
-    dev_type_map[speed_test_dev_name] = dev_type
     return dev_type
 
   dev_type = DevType.SATA
   logger.info("get dev type:[%s] for dev name:[%s] partition name:[%s]",
               dev_type, dev_name, partition_name)
-  dev_type_map[speed_test_dev_name] = dev_type
   return dev_type
 
 
@@ -354,8 +309,7 @@ def get_dev_type_from_datanode(raw_name):
   :param raw_name: like raw1
   :return: enum DevType, like ssd|pcie|sata
   """
-  matched_ssd_records = filter(lambda record: record.get_raw_name() == raw_name,
-                               get_ssd_record_contents())
+  matched_ssd_records = [record for record in get_ssd_record_contents() if record.get_raw_name() == raw_name]
   if len(matched_ssd_records) <= 0:
     logger.info("raw name:[%s] is sata disk.", raw_name)
     return DevType.SATA
@@ -366,9 +320,7 @@ def get_dev_type_from_datanode(raw_name):
       raw_name, dev_name)
 
   dev_name_for_pattern = dev_name
-  matched_partition_infos = filter(
-      lambda info: info.get_raw_disk_partition() == dev_name,
-      get_partition_record_contents())
+  matched_partition_infos = [info for info in get_partition_record_contents() if info.get_raw_disk_partition() == dev_name]
   if len(matched_partition_infos) > 0:
     dev_name_for_pattern = matched_partition_infos[0].get_dev_name()
 
@@ -407,9 +359,8 @@ def generate_link_name(raw_name, dev_type, app_types):
     return None
 
   link_pattern = LINK_NAME_SEPARATOR.join(
-      filter(lambda x: bool(x),
-             [get_link_pattern_by_app_type(app_type) for app_type in
-              app_types]))
+      [x for x in [get_link_pattern_by_app_type(app_type) for app_type in
+              app_types] if bool(x)])
 
   link_name_postfix = dev_type + raw_num
   link_name = None
@@ -726,8 +677,7 @@ def get_exist_link_by_app_type(app_type):
         app_type)
     return []
 
-  exist_link_names = filter(lambda name: link_name_pattern in name,
-                            os.listdir(folder_path))
+  exist_link_names = [name for name in os.listdir(folder_path) if link_name_pattern in name]
   logger.info("find exist link files:[%s] in folder:[%s] for app type:[%s]",
               exist_link_names,
               os.path.basename(folder_path), app_type)
@@ -796,8 +746,7 @@ def get_dev_infos_by_raw_names(raw_names):
     dev_type = get_dev_type_from_datanode(raw_name)
     dev_path = map_raw_path_to_dev_path(get_raw_path_by_raw_name(raw_names))
     disk_size = get_disk_size(raw_path)
-    rule_contents = filter(lambda content: content.get_raw_name() == raw_name,
-                           get_60_rule_contents())
+    rule_contents = [content for content in get_60_rule_contents() if content.get_raw_name() == raw_name]
 
     if len(rule_contents) == 1 and dev_path is not None and disk_size > 0:
       serial_num = rule_contents[0].get_serial_num()
@@ -923,9 +872,7 @@ def init_archives_in_folder(sub_folder, raw_names, is_plugin_progress):
   :return:
   """
   folder_path = os.path.join(config_reader.storage_folder, sub_folder)
-  link_names = filter(
-      lambda name: os.path.islink(os.path.join(folder_path, name)),
-      os.listdir(folder_path))
+  link_names = [name for name in os.listdir(folder_path) if os.path.islink(os.path.join(folder_path, name))]
   logger.info(
       "use java program to init archive, in sub folder:[%s] link names:[%s]",
       sub_folder, link_names)
@@ -942,8 +889,7 @@ def init_archives_in_folder(sub_folder, raw_names, is_plugin_progress):
 
     dev_type = get_dev_type_from_datanode(raw_name)
 
-    rule_contents = filter(lambda content: content.get_raw_name() == raw_name,
-                           get_60_rule_contents())
+    rule_contents = [content for content in get_60_rule_contents() if content.get_raw_name() == raw_name]
     if len(rule_contents) != 1:
       logger.error(
           "can't get dev name and serial number by raw name:[%s] from 60rule file,"
@@ -955,9 +901,7 @@ def init_archives_in_folder(sub_folder, raw_names, is_plugin_progress):
 
     # if it is partitioned disk, should use the origin dev_name
     file_system_partition_name = None
-    partition_infos = filter(
-        lambda info: info.get_raw_disk_partition() == dev_name,
-        get_partition_record_contents())
+    partition_infos = [info for info in get_partition_record_contents() if info.get_raw_disk_partition() == dev_name]
     if len(partition_infos) > 0:
       dev_name = partition_infos[0].get_dev_name()
       file_system_partition_name = partition_infos[
@@ -994,8 +938,7 @@ def pick_fastest_and_bigest_disk(dev_infos):
   fast_dev_types = DevType.get_fast_types()
 
   for dev_type in fast_dev_types:
-    dev_infos_with_special_dev_type = filter(
-        lambda dev_info: dev_info.get_dev_type() == dev_type, dev_infos)
+    dev_infos_with_special_dev_type = [dev_info for dev_info in dev_infos if dev_info.get_dev_type() == dev_type]
     if len(dev_infos_with_special_dev_type) > 0:
       fastest_and_biggest_disk = max(dev_infos_with_special_dev_type,
                                      key=common_models.DevInfo.get_disk_size)
@@ -1017,8 +960,7 @@ def pick_fastest_and_smallest_disk(dev_infos):
   fast_dev_types = DevType.get_fast_types()
 
   for dev_type in fast_dev_types:
-    dev_infos_with_special_dev_type = filter(
-        lambda dev_info: dev_info.get_dev_type() == dev_type, dev_infos)
+    dev_infos_with_special_dev_type = [dev_info for dev_info in dev_infos if dev_info.get_dev_type() == dev_type]
     if len(dev_infos_with_special_dev_type) > 0:
       fastest_and_smallest_disk = min(dev_infos_with_special_dev_type,
                                       key=common_models.DevInfo.get_disk_size)
@@ -1071,7 +1013,7 @@ def delete_device_by_rollback_file():
 
   dev_names = get_rollback_file_content()
   raw_names = [map_dev_name_to_raw_name(dev_name) for dev_name in dev_names]
-  raw_names = filter(lambda raw_name: raw_name is not None, raw_names)
+  raw_names = [raw_name for raw_name in raw_names if raw_name is not None]
 
   unlink_disk_in_datanode(raw_names)
   remove_disk_info_from_datanode_info_file(raw_names, dev_names)
@@ -1131,7 +1073,7 @@ def remove_line_if_contain_word(word, file_path):
     origin_lines = f.readlines()
 
   pattern = r"\b{word}\b".format(word=word)
-  new_lines = filter(lambda line: not re.search(pattern, line), origin_lines)
+  new_lines = [line for line in origin_lines if not re.search(pattern, line)]
 
   if len(new_lines) == len(origin_lines):
     logger.info(
@@ -1350,8 +1292,7 @@ def get_max_raw_num(scan_system=True, scan_rule_file=True,
     raw_names += [content.get_raw_name() for content in get_60_rule_contents()]
 
   if scan_datanode_disk:
-    folder_paths = filter(lambda path: os.path.exists(path),
-                          get_all_disk_folder_paths())
+    folder_paths = [path for path in get_all_disk_folder_paths() if os.path.exists(path)]
     link_file_paths = [os.path.join(folder_path, file_name) for folder_path in
                        folder_paths for file_name in os.listdir(folder_path)]
     real_paths = [os.path.realpath(file_path) for file_path in link_file_paths
@@ -1398,40 +1339,36 @@ def get_all_origin_disks(filtered_dev_names=[], filtered_serial_nums=[]):
   # get datanode formatted disks
   datanode_partition_infos = [get_datanode_partitioned_info(dev_name) for
                               dev_name in dev_names]
-  datanode_partition_infos = filter(lambda info: info is not None,
-                                    datanode_partition_infos)
+  datanode_partition_infos = [info for info in datanode_partition_infos if info is not None]
   logger.info("get datanode partition infos:[%s]", datanode_partition_infos)
 
   # continue filter to get raw disks that can used by datanode
   # filter out datanode partitioned disk
   dev_names_in_partition_info = [info.get_dev_name() for info in
                                  datanode_partition_infos]
-  dev_names = filter(
-      lambda dev_name: dev_name not in dev_names_in_partition_info, dev_names)
+  dev_names = [dev_name for dev_name in dev_names if dev_name not in dev_names_in_partition_info]
   logger.info(
       "after filter by datanode partitioned disks, remained dev names:[%s]",
       dev_names)
 
   # filter out partitioned disk
-  dev_names = filter(lambda dev_name: len(
-      get_partition_paths(get_dev_path_by_dev_name(dev_name))) <= 0, dev_names)
+  dev_names = [dev_name for dev_name in dev_names if len(
+      get_partition_paths(get_dev_path_by_dev_name(dev_name))) <= 0]
   logger.info("after filter out partitioned disks, remained dev names:[%s]",
               dev_names)
 
   # filter out mountable disk
-  dev_names = filter(lambda dev_name: not check_mountable(dev_name), dev_names)
+  dev_names = [dev_name for dev_name in dev_names if not check_mountable(dev_name)]
   logger.info("after filter by whether mountable, remained dev names:[%s]",
               dev_names)
 
   # filter old devices by serial num
   if len(filtered_serial_nums) > 0:
-    dev_names = filter(lambda dev_name: get_serial_num_for_device(
-        get_dev_path_by_dev_name(dev_name)) not in filtered_serial_nums,
-                       dev_names)
-    datanode_partition_infos = filter(lambda info: get_serial_num_for_device(
+    dev_names = [dev_name for dev_name in dev_names if get_serial_num_for_device(
+        get_dev_path_by_dev_name(dev_name)) not in filtered_serial_nums]
+    datanode_partition_infos = [info for info in datanode_partition_infos if get_serial_num_for_device(
         get_dev_path_by_dev_name(
-            info.get_raw_disk_partition())) not in filtered_serial_nums,
-                                      datanode_partition_infos)
+            info.get_raw_disk_partition())) not in filtered_serial_nums]
     logger.info("filter out device by serial_nums:[%s]", filtered_serial_nums)
 
   dev_names = sorted(dev_names)
@@ -1531,7 +1468,7 @@ def get_disks_without_partition():
         dev_names.remove(dev_name)
 
   # filter out pyd device
-  dev_names = filter(lambda dev_name: "pyd" not in dev_name, dev_names)
+  dev_names = [dev_name for dev_name in dev_names if "pyd" not in dev_name]
 
   logger.info("get disk without partition, dev names:[%s]", dev_names)
   return dev_names
@@ -1544,15 +1481,9 @@ def filter_out_mounted_device(dev_names):
   :return: remained dev names
   """
   # filter out by mount info
-  ret_code, ret_lines = run_cmd("mount -l | awk '{print $1}'  | grep '/dev/'")
-  remained_dev_names = dev_names[:]
-  for i in range(0, len(ret_lines)):
-    line = ret_lines[i]
-    new_line = re.sub(r'[0-9]+', '', line)
-    new_dev_name = get_dev_name_by_dev_path(new_line);
-    logger.info("mount disk info:[%s]", new_dev_name)
-    if new_dev_name in remained_dev_names:
-      remained_dev_names.remove(new_dev_name)
+  ret_code, ret_lines = run_cmd("mount")
+  mount_info = "".join(ret_lines)
+  remained_dev_names = [dev_name for dev_name in dev_names if get_dev_path_by_dev_name(dev_name) not in mount_info]
   logger.info(
       "origin dev_names:[%s] filter out mounted device, remained dev_names:[%s]",
       dev_names, remained_dev_names)
@@ -1588,7 +1519,7 @@ def filter_out_pyd_device(dev_names):
   :param dev_names:
   :return: list of remained dev_names
   """
-  remained_dev_names = filter(lambda dev_name: "pyd" not in dev_name, dev_names)
+  remained_dev_names = [dev_name for dev_name in dev_names if "pyd" not in dev_name]
   logger.info("origin dev_names:[%s] filter pyd device, ramined dev_names:[%s]",
               dev_names, remained_dev_names)
   return remained_dev_names
@@ -1929,9 +1860,7 @@ def filter_out_by_rollback_file(dev_infos):
   :return: remained list of DevInfo
   """
   dev_names_from_rollback_file = get_rollback_file_content()
-  remained_dev_infos = filter(lambda
-                                  dev_info: dev_info.get_dev_name() not in dev_names_from_rollback_file,
-                              dev_infos)
+  remained_dev_infos = [dev_info for dev_info in dev_infos if dev_info.get_dev_name() not in dev_names_from_rollback_file]
 
   if len(remained_dev_infos) == len(dev_infos):
     return dev_infos
